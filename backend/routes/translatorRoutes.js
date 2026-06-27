@@ -7,6 +7,8 @@ const Glossary = require('../models/glossary.model.js');
 const TranslationJob = require('../models/translationJob.model.js');
 const Settings = require('../models/settings.model.js');
 const { askDeepSeek } = require('../services/deepseekAndroid.service.js');
+const chatSessionManager = require("../services/chatSessionManager.js");
+const { setOriginalProvider, callTranslationProviderWithSession, getSessionInfoForChapter, getSessionInfoForGlossary } = require("../services/translationService.js");
 
 // --- Firestore Setup (MANDATORY) ---
 let firestore;
@@ -329,6 +331,9 @@ async function callTranslationProvider(provider, modelName, apiKey, prompt, opti
     throw new Error(`Invalid response from ${providerId}: ${JSON.stringify(res.data)}`);
 }
 
+// Set the original provider for the translation service
+setOriginalProvider(callTranslationProvider);
+
 // --- THE TRANSLATION WORKER (STRICT FIRESTORE MODE) ---
 async function processTranslationJob(jobId) {
     try {
@@ -475,7 +480,7 @@ ${sourceContent}
                         const key = keys[keyIdx];
                         try {
                             await pushLog(jobId, `1️⃣ مزوّد: ${providerName} | نموذج: ${modelToUse} | مفتاح ${keyIdx + 1}/${keys.length}`, 'info');
-                            translatedText = await callTranslationProvider(provider, modelToUse, key, translationInput);
+                            translatedText = await callTranslationProviderWithSession(provider, modelToUse, key, translationInput, { sessionInfo: getSessionInfoForChapter(freshNovel._id, chapterNum) });
                             translationSuccess = true;
                             usedProvider = provider; // remember which provider worked
                             await pushLog(jobId, `✅ نجحت الترجمة باستخدام ${providerName}`, 'success');
@@ -562,7 +567,7 @@ Arabic Text (Excerpt):
                     } else {
                         // OpenAI-compatible or Cloudflare LLM or ChatGPT Android
                         const extPrompt = extractionInput + "\n\nRETURN ONLY JSON.";
-                        jsonText = await callTranslationProvider(extProvider, extModelId, extKey, extPrompt);
+                        jsonText = await callTranslationProviderWithSession(extProvider, extModelId, extKey, extPrompt, { sessionInfo: getSessionInfoForGlossary(freshNovel._id) });
                     }
                     
                     // Cleanup JSON string
