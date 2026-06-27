@@ -55,7 +55,9 @@ export default function TranslatorSettingsScreen({ navigation }) {
                   models: p.models && p.models.length ? p.models : [{ modelId: 'gemini-2.5-flash', modelName: 'Gemini 2.5 Flash' }],
                   apiKeys: p.apiKeys || [],
                   selectedModel: p.selectedModel || (p.models && p.models[0]?.modelId) || 'gemini-2.5-flash',
-                  priority: p.priority !== undefined ? p.priority : idx
+                  priority: p.priority !== undefined ? p.priority : idx,
+                  thinkingEnabled: Boolean(p.thinkingEnabled),
+                  searchEnabled: p.searchEnabled !== false
               }));
               setProviders(normalized);
           }
@@ -75,11 +77,14 @@ export default function TranslatorSettingsScreen({ navigation }) {
           baseUrl: '',
           models: [
               { modelId: 'gemini-2.5-flash', modelName: 'Gemini 2.5 Flash' },
-              { modelId: 'auto', modelName: 'ChatGPT Android' }
+              { modelId: 'auto', modelName: 'ChatGPT Android' },
+              { modelId: 'deepseek-chat', modelName: 'DeepSeek' }
           ],
           apiKeys: [],
           selectedModel: 'gemini-2.5-flash',
-          priority: newPriority
+          priority: newPriority,
+          thinkingEnabled: false,
+          searchEnabled: true
       };
       setProviders([...providers, newProvider]);
       setExpandedProvider(newProvider.providerId);
@@ -162,7 +167,9 @@ export default function TranslatorSettingsScreen({ navigation }) {
               models: p.models.filter(m => m.modelId.trim() !== '').map(m => ({ modelId: m.modelId.trim(), modelName: m.modelName.trim() || m.modelId.trim() })),
               apiKeys: p.apiKeys,
               selectedModel: p.selectedModel,
-              priority: p.priority
+              priority: p.priority,
+              thinkingEnabled: Boolean(p.thinkingEnabled),
+              searchEnabled: p.searchEnabled !== false
           }));
 
           await api.post('/api/translator/settings', {
@@ -268,7 +275,7 @@ export default function TranslatorSettingsScreen({ navigation }) {
 
                                 {/* المفاتيح */}
                                 <Text style={styles.miniLabel}>مفاتيح API (كل مفتاح في سطر)</Text>
-                                <Text style={styles.hintSmall}>🔑 بالنسبة لـ ChatGPT Android: اترك الحقل فارغاً أو اكتب أي نص (لا يحتاج مفتاح حقيقي)</Text>
+                                <Text style={styles.hintSmall}>🔑 بالنسبة لـ ChatGPT Android و DeepSeek: يمكن ترك الحقل فارغاً (DeepSeek يستخدم الرمز الافتراضي من تطبيق المحادثة).</Text>
                                 <TextInput
                                     style={styles.keysInputSmall}
                                     multiline
@@ -279,6 +286,32 @@ export default function TranslatorSettingsScreen({ navigation }) {
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                 />
+
+                                <View style={styles.toggleRow}>
+                                    <View style={{flex: 1, alignItems: 'flex-end'}}>
+                                        <Text style={styles.toggleTitle}>تفكير DeepSeek</Text>
+                                        <Text style={styles.hintSmall}>إرسال thinking_enabled مع طلبات DeepSeek فقط.</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.togglePill, provider.thinkingEnabled && styles.togglePillActive]}
+                                        onPress={() => updateProviderField(provider.providerId, 'thinkingEnabled', !provider.thinkingEnabled)}
+                                    >
+                                        <Text style={styles.toggleText}>{provider.thinkingEnabled ? 'مفعل' : 'معطل'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.toggleRow}>
+                                    <View style={{flex: 1, alignItems: 'flex-end'}}>
+                                        <Text style={styles.toggleTitle}>بحث DeepSeek</Text>
+                                        <Text style={styles.hintSmall}>إرسال search_enabled مع طلبات DeepSeek فقط.</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[styles.togglePill, provider.searchEnabled !== false && styles.togglePillActive]}
+                                        onPress={() => updateProviderField(provider.providerId, 'searchEnabled', provider.searchEnabled === false)}
+                                    >
+                                        <Text style={styles.toggleText}>{provider.searchEnabled !== false ? 'مفعل' : 'معطل'}</Text>
+                                    </TouchableOpacity>
+                                </View>
 
                                 {/* النماذج */}
                                 <Text style={styles.miniLabel}>النماذج</Text>
@@ -386,6 +419,11 @@ const styles = StyleSheet.create({
   sectionLabel: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginBottom: 5, textAlign: 'right' },
   hint: { color: '#888', fontSize: 12, textAlign: 'right', marginBottom: 15 },
   hintSmall: { color: '#888', fontSize: 10, textAlign: 'right', marginBottom: 5 },
+  toggleRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, padding: 10, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, borderWidth: 1, borderColor: '#333', gap: 10 },
+  toggleTitle: { color: '#fff', fontSize: 13, fontWeight: 'bold', textAlign: 'right' },
+  togglePill: { minWidth: 72, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, backgroundColor: '#333', alignItems: 'center' },
+  togglePillActive: { backgroundColor: '#10b981' },
+  toggleText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 15, marginTop: 25, textAlign: 'right' },
 
   // زر إضافة مزوّد
