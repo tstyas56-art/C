@@ -275,7 +275,7 @@ export default function TranslatorSettingsScreen({ navigation }) {
 
                                 {/* المفاتيح */}
                                 <Text style={styles.miniLabel}>مفاتيح API (كل مفتاح في سطر)</Text>
-                                <Text style={styles.hintSmall}>🔑 بالنسبة لـ ChatGPT Android و DeepSeek: يمكن ترك الحقل فارغاً (DeepSeek يستخدم الرمز الافتراضي من تطبيق المحادثة).</Text>
+                                <Text style={styles.hintSmall}>🔑 ChatGPT Android يمكن تركه فارغاً. DeepSeek يتجاهل مفاتيح هذا الحقل ويستخدم رمز تطبيق المحادثة الافتراضي حتى لا تُرسل مفاتيح sk-* كرمز DeepSeek.</Text>
                                 <TextInput
                                     style={styles.keysInputSmall}
                                     multiline
