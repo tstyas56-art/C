@@ -57,7 +57,8 @@ export default function TranslatorSettingsScreen({ navigation }) {
                   selectedModel: p.selectedModel || (p.models && p.models[0]?.modelId) || 'gemini-2.5-flash',
                   priority: p.priority !== undefined ? p.priority : idx,
                   thinkingEnabled: Boolean(p.thinkingEnabled),
-                  searchEnabled: p.searchEnabled !== false
+                  searchEnabled: p.searchEnabled !== false,
+                  deepSeekChaptersPerSession: p.deepSeekChaptersPerSession || 100
               }));
               setProviders(normalized);
           }
@@ -84,7 +85,8 @@ export default function TranslatorSettingsScreen({ navigation }) {
           selectedModel: 'gemini-2.5-flash',
           priority: newPriority,
           thinkingEnabled: false,
-          searchEnabled: true
+          searchEnabled: true,
+          deepSeekChaptersPerSession: 100
       };
       setProviders([...providers, newProvider]);
       setExpandedProvider(newProvider.providerId);
@@ -169,7 +171,8 @@ export default function TranslatorSettingsScreen({ navigation }) {
               selectedModel: p.selectedModel,
               priority: p.priority,
               thinkingEnabled: Boolean(p.thinkingEnabled),
-              searchEnabled: p.searchEnabled !== false
+              searchEnabled: p.searchEnabled !== false,
+              deepSeekChaptersPerSession: Number(p.deepSeekChaptersPerSession) || 100
           }));
 
           await api.post('/api/translator/settings', {
@@ -312,6 +315,18 @@ export default function TranslatorSettingsScreen({ navigation }) {
                                         <Text style={styles.toggleText}>{provider.searchEnabled !== false ? 'مفعل' : 'معطل'}</Text>
                                     </TouchableOpacity>
                                 </View>
+
+
+                                <Text style={styles.miniLabel}>عدد الفصول لكل محادثة DeepSeek</Text>
+                                <Text style={styles.hintSmall}>الافتراضي 100: تنشأ محادثة للفصول ومحادثة للمصطلحات لكل 100 فصل، ثم تبدأ محادثتان جديدتان للدفعة التالية.</Text>
+                                <TextInput
+                                    style={styles.miniInput}
+                                    value={String(provider.deepSeekChaptersPerSession || 100)}
+                                    onChangeText={(text) => updateProviderField(provider.providerId, 'deepSeekChaptersPerSession', text.replace(/[^0-9]/g, ''))}
+                                    placeholder="100"
+                                    placeholderTextColor="#666"
+                                    keyboardType="numeric"
+                                />
 
                                 {/* النماذج */}
                                 <Text style={styles.miniLabel}>النماذج</Text>
