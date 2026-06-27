@@ -78,6 +78,9 @@ function parseDeepSeekLine(line, state) {
     let item;
     try { item = JSON.parse(rawChunk); } catch (_) { return; }
 
+    if (item?.request_message_id) state.requestMessageId = item.request_message_id;
+    if (item?.response_message_id) state.responseMessageId = item.response_message_id;
+
     if (item?.v) {
         if (typeof item.v === 'string') {
             state.text += item.v;
@@ -97,12 +100,13 @@ function parseDeepSeekLine(line, state) {
 async function askDeepSeek(prompt, options = {}) {
     const token = options.token || DEFAULT_DEEPSEEK_TOKEN;
     const powUrl = options.powUrl || DEFAULT_POW_URL;
-    const sessionId = await createChatSession(token);
+    const sessionId = options.sessionId || await createChatSession(token);
+    const parentMessageId = options.parentMessageId || null;
     const { powResponse, powData } = await getFreshPow(powUrl);
 
     const response = await axios.post('https://chat.deepseek.com/api/v0/chat/completion', {
         chat_session_id: sessionId,
-        parent_message_id: null,
+        parent_message_id: parentMessageId,
         prompt,
         ref_file_ids: [],
         thinking_enabled: Boolean(options.thinkingEnabled),
@@ -117,7 +121,15 @@ async function askDeepSeek(prompt, options = {}) {
         responseType: 'stream'
     });
 
-    const state = { text: '', thinking: '', searchResults: [] };
+    const state = {
+        text: '',
+        thinking: '',
+        searchResults: [],
+        sessionId,
+        parentMessageId,
+        requestMessageId: null,
+        responseMessageId: null
+    };
     await new Promise((resolve, reject) => {
         response.data.on('data', chunk => {
             const lines = chunk.toString().split('\n');
@@ -128,6 +140,16 @@ async function askDeepSeek(prompt, options = {}) {
     });
 
     if (!state.text.trim()) throw new Error('DeepSeek returned an empty response');
+    if (options.returnMeta) {
+        return {
+            text: state.text,
+            sessionId: state.sessionId,
+            requestMessageId: state.requestMessageId,
+            responseMessageId: state.responseMessageId,
+            thinking: state.thinking,
+            searchResults: state.searchResults
+        };
+    }
     return state.text;
 }
 

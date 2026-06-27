@@ -125,16 +125,27 @@ async function callTranslationProvider(provider, modelName, apiKey, prompt, opti
 
     // ---- DeepSeek Android/Web API (same flow as the standalone DeepSeek app) ----
     if (isDeepSeek) {
+        const purpose = options.deepSeekPurpose || 'translation';
+        if (!provider._deepSeekSessions) provider._deepSeekSessions = {};
+        if (!provider._deepSeekSessions[purpose]) provider._deepSeekSessions[purpose] = {};
+        const sessionState = provider._deepSeekSessions[purpose];
+
         const deepSeekOptions = {
             // DeepSeek هنا هو مزوّد تطبيق المحادثة وليس واجهة API الرسمية.
             // لذلك لا نمرر مفاتيح OpenAI-compatible مثل sk-* كـ Bearer token لأنها تسبب
             // Authorization Failed، ونستخدم رمز التطبيق الافتراضي مثل التطبيق المستقل.
             token: provider.deepSeekToken || undefined,
+            sessionId: sessionState.sessionId,
+            parentMessageId: sessionState.parentMessageId,
             thinkingEnabled: Boolean(provider.thinkingEnabled),
             searchEnabled: provider.searchEnabled !== false,
-            timeout: options.timeout || 500000
+            timeout: options.timeout || 500000,
+            returnMeta: true
         };
-        return askDeepSeek(prompt, deepSeekOptions);
+        const deepSeekResult = await askDeepSeek(prompt, deepSeekOptions);
+        sessionState.sessionId = deepSeekResult.sessionId;
+        sessionState.parentMessageId = deepSeekResult.responseMessageId || sessionState.parentMessageId;
+        return deepSeekResult.text;
     }
 
     // ---- Gemini native ----
@@ -354,7 +365,7 @@ async function processTranslationJob(jobId) {
         
         // 🔥🔥 NEW: Read providers from new system; fallback to old keys if empty
         let providers = settings.translationProviders && settings.translationProviders.length > 0
-            ? settings.translationProviders.slice()
+            ? settings.translationProviders.map(provider => provider.toObject ? provider.toObject() : provider)
             : [];
 
         // Fallback: if no new providers, build one from legacy settings
@@ -475,7 +486,7 @@ ${sourceContent}
                         const key = keys[keyIdx];
                         try {
                             await pushLog(jobId, `1️⃣ مزوّد: ${providerName} | نموذج: ${modelToUse} | مفتاح ${keyIdx + 1}/${keys.length}`, 'info');
-                            translatedText = await callTranslationProvider(provider, modelToUse, key, translationInput);
+                            translatedText = await callTranslationProvider(provider, modelToUse, key, translationInput, { deepSeekPurpose: 'translation' });
                             translationSuccess = true;
                             usedProvider = provider; // remember which provider worked
                             await pushLog(jobId, `✅ نجحت الترجمة باستخدام ${providerName}`, 'success');
@@ -562,7 +573,7 @@ Arabic Text (Excerpt):
                     } else {
                         // OpenAI-compatible or Cloudflare LLM or ChatGPT Android
                         const extPrompt = extractionInput + "\n\nRETURN ONLY JSON.";
-                        jsonText = await callTranslationProvider(extProvider, extModelId, extKey, extPrompt);
+                        jsonText = await callTranslationProvider(extProvider, extModelId, extKey, extPrompt, { deepSeekPurpose: 'extraction' });
                     }
                     
                     // Cleanup JSON string
