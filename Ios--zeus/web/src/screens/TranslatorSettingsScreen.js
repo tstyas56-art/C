@@ -66,7 +66,8 @@ export default function TranslatorSettingsScreen({ navigation }) {
                   priority: p.priority !== undefined ? p.priority : idx,
                   thinkingEnabled: Boolean(p.thinkingEnabled),
                   searchEnabled: p.searchEnabled !== false,
-                  deepSeekModelType: p.deepSeekModelType === 'expert' ? 'expert' : 'instant'
+                  deepSeekModelType: p.deepSeekModelType === 'expert' ? 'expert' : 'instant',
+                  deepSeekTokens: p.deepSeekTokens || []
               }));
               setProviders(normalized);
           }
@@ -93,7 +94,8 @@ export default function TranslatorSettingsScreen({ navigation }) {
           priority: newPriority,
           thinkingEnabled: false,
           searchEnabled: true,
-          deepSeekModelType: 'instant'
+          deepSeekModelType: 'instant',
+          deepSeekTokens: []
       };
       setProviders([...providers, newProvider]);
       setExpandedProvider(newProvider.providerId);
@@ -118,6 +120,11 @@ export default function TranslatorSettingsScreen({ navigation }) {
   const updateProviderKeys = (providerId, text) => {
       const keys = text.split('\n').map(k => k.trim()).filter(k => k.length > 5);
       setProviders(providers.map(p => p.providerId === providerId ? { ...p, apiKeys: keys, _keysText: text } : p));
+  };
+
+  const updateProviderDeepSeekTokens = (providerId, text) => {
+      const tokens = text.split('\n').map(t => t.trim()).filter(t => t.length > 10);
+      setProviders(providers.map(p => p.providerId === providerId ? { ...p, deepSeekTokens: tokens, _deepSeekTokensText: text } : p));
   };
 
   // إضافة نموذج لمزوّد
@@ -179,7 +186,8 @@ export default function TranslatorSettingsScreen({ navigation }) {
               priority: p.priority,
               thinkingEnabled: Boolean(p.thinkingEnabled),
               searchEnabled: p.searchEnabled !== false,
-              deepSeekModelType: p.deepSeekModelType === 'expert' ? 'expert' : 'instant'
+              deepSeekModelType: p.deepSeekModelType === 'expert' ? 'expert' : 'instant',
+              deepSeekTokens: p.deepSeekTokens || []
           }));
 
           await api.post('/api/translator/settings', {
@@ -287,16 +295,20 @@ export default function TranslatorSettingsScreen({ navigation }) {
                                     autoCapitalize="none"
                                 />
 
-                                {/* المفاتيح */}
-                                <Text style={styles.miniLabel}>مفاتيح API (كل مفتاح في سطر)</Text>
-                                <Text style={styles.hintSmall}>🔑 بالنسبة لـ ChatGPT Android: اترك الحقل فارغاً أو اكتب أي نص (لا يحتاج مفتاح حقيقي)</Text>
+                                {/* المفاتيح / توكنات DeepSeek */}
+                                <Text style={styles.miniLabel}>{isDeepSeek ? 'توكنات حسابات DeepSeek (كل توكن في سطر)' : 'مفاتيح API (كل مفتاح في سطر)'}</Text>
+                                <Text style={styles.hintSmall}>
+                                    {isDeepSeek
+                                        ? 'إذا تركتها فارغة سيتم استخدام التوكن الافتراضي الحالي. عند إضافة أكثر من توكن سيتم توزيع مهام الروايات بينها.'
+                                        : '🔑 بالنسبة لـ ChatGPT Android: اترك الحقل فارغاً أو اكتب أي نص (لا يحتاج مفتاح حقيقي)'}
+                                </Text>
                                 <TextInput
                                     style={styles.keysInputSmall}
                                     multiline
-                                    placeholder="AIzaSy...\nsk-..."
+                                    placeholder={isDeepSeek ? "DeepSeek token 1\nDeepSeek token 2" : "AIzaSy...\nsk-..."}
                                     placeholderTextColor="#666"
-                                    value={provider._keysText || provider.apiKeys.join('\n')}
-                                    onChangeText={(text) => updateProviderKeys(provider.providerId, text)}
+                                    value={isDeepSeek ? (provider._deepSeekTokensText || (provider.deepSeekTokens || []).join('\n')) : (provider._keysText || provider.apiKeys.join('\n'))}
+                                    onChangeText={(text) => isDeepSeek ? updateProviderDeepSeekTokens(provider.providerId, text) : updateProviderKeys(provider.providerId, text)}
                                     autoCapitalize="none"
                                     autoCorrect={false}
                                 />
